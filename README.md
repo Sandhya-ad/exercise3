@@ -1,47 +1,28 @@
-# Template: template-ros
+# Repo for Exercise 3 cmput 412
 
-This template provides a boilerplate repository
-for developing ROS-based software in Duckietown.
+First run `dts devel build -H csc22907.local -f` to build the executables on the duckie bot
 
-**NOTE:** If you want to develop software that does not use
-ROS, check out [this template](https://github.com/duckietown/template-basic).
+## Part 1
+Distortion:
+- To view the undistorted image run ` dts devel run -H csc22907.local -L color-detection`
+- Then in another terminal run `dts start_gui_tools csc22907` and then `rqt_image_view` Then you can see the undistorted and blurred image under the topic `/camera_undistorted/image/compressed`
 
+Color detection:
+- To view the color detection run ` dts devel run -H csc22907.local -L color-detection`
+- Then in another terminal run `dts start_gui_tools csc22907` and then `rqt_image_view` Then you can see the color detection and contour under the topic `/lane_detection/image/compressed`
 
-## How to use it
+LED controller
+- Led can be controlled by importing LEDBlinker from `led_service` file. It has 2 functions set_let_color which takes a color and turns all the color to given color and another function set_led_color2 which takes a color and an array of 5 to indicate which led to turn 0 meaning off and 1 in the array meaning change color
 
-### 1. Fork this repository
+Autonomous navigation:
+- Autonomous navigation is controlled by `auto_nav_func` file. It has 3 functions:
+    - move_straight(distance(in metre)
+    - move_turn_left()
+    - move_turn_right()
 
-Use the fork button in the top-right corner of the github page to fork this template repository.
-
-
-### 2. Create a new repository
-
-Create a new repository on github.com while
-specifying the newly forked template repository as
-a template for your new repository.
-
-
-### 3. Define dependencies
-
-List the dependencies in the files `dependencies-apt.txt` and
-`dependencies-py3.txt` (apt packages and pip packages respectively).
-
-
-### 4. Place your code
-
-Place your code in the directory `/packages/` of
-your new repository.
-
-
-### 5. Setup launchers
-
-The directory `/launchers` can contain as many launchers (launching scripts)
-as you want. A default launcher called `default.sh` must always be present.
-
-If you create an executable script (i.e., a file with a valid shebang statement)
-a launcher will be created for it. For example, the script file 
-`/launchers/my-launcher.sh` will be available inside the Docker image as the binary
-`dt-launcher-my-launcher`.
-
-When launching a new container, you can simply provide `dt-launcher-my-launcher` as
-command.
+Lane Based behaviour
+- Run the command ` dts devel run -H csc22907.local -L lane-based`
+- If it detects red, move up to the red and move straight again
+- detects blue: move up to blue and turn left
+- detects green: move up to green and turn right
+##### The program is programmed to stop after executing one lane-based behavior. To see behavior in different color run the program in front of different color 
