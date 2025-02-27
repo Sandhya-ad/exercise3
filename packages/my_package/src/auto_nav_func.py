@@ -74,7 +74,8 @@ class Navigator:
     def move_curve_right(self):
         """ Moves the bot in a 90-degree right curve. """
         rospy.loginfo("Curving right for 90 degrees.")
-        self.led_controller.set_led_color("yellow")
+
+        rospy.sleep(1)
 
         command = WheelsCmdStamped(vel_left=0.52, vel_right=0.2)
 
@@ -91,7 +92,7 @@ class Navigator:
     def move_curve_left(self):
         """ Moves the bot in a 90-degree left curve. """
         rospy.loginfo("Curving left for 90 degrees.")
-        self.led_controller.set_led_color("yellow")
+        rospy.sleep(1)
 
         command = WheelsCmdStamped(vel_left=0.2, vel_right=0.5)
 
@@ -108,8 +109,6 @@ class Navigator:
     def stop(self, duration):
         """ Stops the bot for a specified duration. """
         rospy.loginfo(f"Stopping for {duration} seconds.")
-        self.led_controller.set_led_color("red")
-
         stop_cmd = WheelsCmdStamped(vel_left=0, vel_right=0)
         self.publisher.publish(stop_cmd)
 

@@ -11,11 +11,11 @@ import numpy as np
 import cv2
 from cv_bridge import CvBridge
 
-class CameraReaderNode(DTROS):
+class CameraReaderNode:
 
     def __init__(self, node_name):
         # initialize the DTROS parent class
-        super(CameraReaderNode, self).__init__(node_name=node_name, node_type=NodeType.VISUALIZATION)
+        # super(CameraReaderNode, self).__init__(node_name=node_name, node_type=NodeType.VISUALIZATION)
         # static parameters
         self._vehicle_name = os.environ['VEHICLE_NAME']
         self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
@@ -38,13 +38,14 @@ class CameraReaderNode(DTROS):
 
         # Processing frequency
         self.rate = rospy.Rate(3)  # 3 Hz (3-5 frames per second)
+        
 
     
     def camera_info_callback(self, msg):
         """ Callback to receive camera intrinsic parameters. """
         self.camera_matrix = np.array(msg.K).reshape((3, 3))
-        self.dist_coeffs = np.array(msg.D)
-        rospy.loginfo("Camera intrinsic parameters received.")
+        self.dist_coeffs = np.array(msg.D)  
+    
     def undistort_image(self, image):
         """ Applies undistortion using stored camera parameters. """
         if self.camera_matrix is None or self.dist_coeffs is None:
@@ -77,7 +78,7 @@ class CameraReaderNode(DTROS):
             image = self._bridge.compressed_imgmsg_to_cv2(msg, desired_encoding="bgr8")
 
             # Undistort the image
-            undistorted_image = self.undistort_image(image)
+            undistorted_image = self.undistort_image(image,)
             h, w = undistorted_image.shape[:2]
             resized_image = undistorted_image
 	
@@ -91,7 +92,7 @@ class CameraReaderNode(DTROS):
 
 
             # resized_image = cv2.resize(undistorted_image, (w//2, h//2), interpolation=cv2.INTER_AREA)   #resized image
-            resized_image = cv2.GaussianBlur(resized_image,(5,5),0)     #resized and blurres image
+            #resized_image = cv2.GaussianBlur(resized_image,(5,5),0)     #resized and blurres image
 
 
             # Encode back to CompressedImage
