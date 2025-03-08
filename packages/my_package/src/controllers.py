@@ -83,7 +83,7 @@ class ControllerNode(DTROS):
 
          # Variables for image processing optimization
         self.last_processed_image = None  # Stores the last cropped image
-        self.difference_threshold = 5    # Adjust threshold as necessary
+        self.difference_threshold = 10    # Adjust threshold as necessary
         
 
     def callback(self, msg):
