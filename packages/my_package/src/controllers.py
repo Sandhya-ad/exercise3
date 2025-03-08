@@ -78,13 +78,13 @@ class ControllerNode(DTROS):
 
 
         # variables for Controller
-        self.Kp = 0.01   # Tune this value absed on testing ask chatGPT more about it how increase 
+        self.Kp = 0.007   # Tune this value absed on testing ask chatGPT more about it how increase 
         # and decrease affect the movement
 
          # Variables for image processing optimization
         self.last_processed_image = None  # Stores the last cropped image
-        self.difference_threshold = 10    # Adjust threshold as necessary
-
+        self.difference_threshold = 5    # Adjust threshold as necessary
+        
 
     def callback(self, msg):
         try:
@@ -301,8 +301,8 @@ class ControllerNode(DTROS):
         vel_right = base_speed - control
 
         # Clamp values between -1 and 1
-        vel_left = max(min(vel_left, 1.0), 0)
-        vel_right = max(min(vel_right, 1.0), 0)
+        vel_left = max(min(vel_left, 1.0), -1.0)
+        vel_right = max(min(vel_right, 1.0), -1.0)
 
         print(f"image center: {image_center}, lane center: {lane_center}, Error: {error}, left: {vel_left}, right: {vel_right}")
 
