@@ -78,12 +78,12 @@ class ControllerNode(DTROS):
 
 
         # variables for Controller
-        self.Kp = 0.0002   # Tune this value absed on testing ask chatGPT more about it how increase 
+        self.Kp = 0.01   # Tune this value absed on testing ask chatGPT more about it how increase 
         # and decrease affect the movement
 
          # Variables for image processing optimization
         self.last_processed_image = None  # Stores the last cropped image
-        self.difference_threshold = 5     # Adjust threshold as necessary
+        self.difference_threshold = 10    # Adjust threshold as necessary
 
 
     def callback(self, msg):
@@ -126,11 +126,11 @@ class ControllerNode(DTROS):
             processed_msg_both = self._bridge.cv2_to_compressed_imgmsg(undistorted_image)
 
             # Calculate the lane center
-            #lane_center = self.compute_lane_center(yellow_lanes_masking, white_lane_masking, undistorted_image)
+            lane_center = self.compute_lane_center(yellow_lanes_masking, white_lane_masking, undistorted_image)
 
             # Apply P controller to adjust steering
-            #if lane_center != None:
-                #self.apply_p_controller(lane_center, undistorted_image)
+            if lane_center != None:
+                self.apply_p_controller(lane_center, undistorted_image)
 
 
             self.pub_yellow.publish(processed_msg_yellow)
@@ -172,8 +172,8 @@ class ControllerNode(DTROS):
 
         
         undistorted = cv2.resize(undistorted, (320, 240))  # Adjust resolution as needed
-        return cv2.GaussianBlur(undistorted, (5, 5), 0)
-        # return undistorted
+        #return cv2.GaussianBlur(undistorted, (5, 5), 0)
+        return undistorted
 
     
     def detect_yellow_dotted_lane(self, image):
@@ -288,28 +288,31 @@ class ControllerNode(DTROS):
         image_center = image_width // 2
         error = lane_center - image_center  # Error: difference from the center
 
-        print(f"lane center: {lane_center}, Error: {error}, image center: {image_center}")
-
         # Proportional control calculation
         control = self.Kp * error  # Positive to steer correctly
 
         # Ensure a forward base speed
         base_speed = 0.2  # Adjust this based on your robot's dynamics
 
+        print(f"control: {control}")
+
         # Compute left and right wheel speeds
-        vel_left = base_speed - control
-        vel_right = base_speed + control
+        vel_left = base_speed + control
+        vel_right = base_speed - control
 
         # Clamp values between -1 and 1
-        vel_left = max(min(vel_left, 1.0), -1.0)
-        vel_right = max(min(vel_right, 1.0), -1.0)
+        vel_left = max(min(vel_left, 1.0), 0)
+        vel_right = max(min(vel_right, 1.0), 0)
+
+        print(f"image center: {image_center}, lane center: {lane_center}, Error: {error}, left: {vel_left}, right: {vel_right}")
+
 
         # Check if 350 ticks have been reached
         if self._ticks_left is not None and self._ticks_right is not None:
             ticks_travelled_left = abs(self._ticks_left - self._initial_ticks_left)
             ticks_travelled_right = abs(self._ticks_right - self._initial_ticks_right)
 
-            if ticks_travelled_left >= 600 or ticks_travelled_right >= 600:
+            if ticks_travelled_left >= 850 or ticks_travelled_right >= 850:
                 rospy.loginfo_once("Stopping robot after 350 ticks")
                 vel_left = 0.0
                 vel_right = 0.0
