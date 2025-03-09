@@ -76,14 +76,24 @@ class ControllerNode(DTROS):
         self.sub_right = rospy.Subscriber(self._right_encoder_topic, WheelEncoderStamped, self.callback_right)
         self.publisher = rospy.Publisher(self._wheels_topic, WheelsCmdStamped, queue_size=1)
 
+        # control mode
+        #self._controller_mode = "p"
+        self._controller_mode = "pd"
+        #self._controller_mode = "p"
+
+
 
         # variables for Controller
-        self.Kp = 0.007   # Tune this value absed on testing ask chatGPT more about it how increase 
+        # use of self.Kp = 0.005 for p controller
+        self.Kp = 0.003   # Tune this value absed on testing ask chatGPT more about it how increase 
         # and decrease affect the movement
+        self.Kd = 0.005
+        self.prev_error = 0
 
          # Variables for image processing optimization
         self.last_processed_image = None  # Stores the last cropped image
-        self.difference_threshold = 10    # Adjust threshold as necessary
+        self.difference_threshold = 5    # Adjust threshold as necessary
+        
         
 
     def callback(self, msg):
@@ -130,7 +140,10 @@ class ControllerNode(DTROS):
 
             # Apply P controller to adjust steering
             if lane_center != None:
-                self.apply_p_controller(lane_center, undistorted_image)
+                if self._controller_mode == "p":
+                    self.apply_p_controller(lane_center, undistorted_image)
+                elif self._controller_mode == "pd":
+                    self.apply_pd_controller(lane_center, undistorted_image)
 
 
             self.pub_yellow.publish(processed_msg_yellow)
@@ -229,38 +242,6 @@ class ControllerNode(DTROS):
             lane_center = (centroid_yellow[0] + centroid_white[0]) // 2  # Average both lanes
 
         return lane_center  # Return the x-coordinate of the lane center
-
-
-
-
-        '''
-        # for Testing
-        # to check which line is closer
-
-        # Handle cases where one or both centroids are missing
-        if centroid_white is None and centroid_yellow is None:
-            print("No lanes detected.")
-            return None
-
-        if centroid_white is None:
-            return "yellow"
-
-        if centroid_yellow is None:
-            return "white"
-
-        # Calculate distance to both lanes
-        distance_to_white = abs(image_center - centroid_white[0])
-        distance_to_yellow = abs(roimage_centerbot_x - centroid_yellow[0])
-
-        # Output which lane is closer
-        if distance_to_white < distance_to_yellow:
-            print("Robot is closer to the white lane.")
-            return "white"
-        else:
-            print("Robot is closer to the yellow lane.")
-            return "yellow"
-
-        '''
                     
 
     def find_centroid(self, contours):
@@ -292,7 +273,7 @@ class ControllerNode(DTROS):
         control = self.Kp * error  # Positive to steer correctly
 
         # Ensure a forward base speed
-        base_speed = 0.2  # Adjust this based on your robot's dynamics
+        base_speed = 0.3  # Adjust this based on your robot's dynamics
 
         print(f"control: {control}")
 
@@ -312,8 +293,9 @@ class ControllerNode(DTROS):
             ticks_travelled_left = abs(self._ticks_left - self._initial_ticks_left)
             ticks_travelled_right = abs(self._ticks_right - self._initial_ticks_right)
 
+            # make sure to travel it to 1.5 m, calculate the ticks accordingly.
             if ticks_travelled_left >= 850 or ticks_travelled_right >= 850:
-                rospy.loginfo_once("Stopping robot after 350 ticks")
+                rospy.loginfo_once("Stopping robot after 850 ticks")
                 vel_left = 0.0
                 vel_right = 0.0
 
@@ -322,6 +304,60 @@ class ControllerNode(DTROS):
         cmd.vel_left = vel_left
         cmd.vel_right = vel_right
         self.publisher.publish(cmd)
+
+
+    def apply_pd_controller(self, lane_center, image):
+        """Applies PD control to follow the lane smoothly while moving forward."""
+        # Get the center of the image
+        _, image_width, _ = image.shape
+        image_center = image_width // 2
+
+        # Calculate the error between the lane center and the image center
+        error = lane_center - image_center  # Error: difference from the center
+
+        # Calculate the derivative of the error.
+        # Here, we assume a constant time interval between updates.
+        # Make sure that self.prev_error is initialized (e.g., to 0) in your __init__ method.
+        derivative = error - self.prev_error
+
+        # Update the previous error for the next control cycle
+        self.prev_error = error
+
+        # PD control calculation: combining proportional and derivative actions.
+        control = self.Kp * error + self.Kd * derivative
+
+        # Set a base forward speed
+        base_speed = 0.4  # Adjust based on your robot's dynamics
+
+        print(f"control: {control}")
+
+        # Compute left and right wheel speeds using the control signal
+        vel_left = base_speed + control
+        vel_right = base_speed - control
+
+        # Clamp the velocity values between -1 and 1
+        vel_left = max(min(vel_left, 1.0), -1.0)
+        vel_right = max(min(vel_right, 1.0), -1.0)
+
+        print(f"image center: {image_center}, lane center: {lane_center}, Error: {error}, Derivative: {derivative}, left: {vel_left}, right: {vel_right}")
+
+        # Check if 850 ticks have been reached to potentially stop the robot
+        if self._ticks_left is not None and self._ticks_right is not None:
+            ticks_travelled_left = abs(self._ticks_left - self._initial_ticks_left)
+            ticks_travelled_right = abs(self._ticks_right - self._initial_ticks_right)
+            
+            # If either wheel has reached 850 ticks, stop the robot
+            if ticks_travelled_left >= 850 or ticks_travelled_right >= 850:
+                rospy.loginfo_once("Stopping robot after 850 ticks")
+                vel_left = 0.0
+                vel_right = 0.0
+
+        # Publish the velocity command
+        cmd = WheelsCmdStamped()
+        cmd.vel_left = vel_left
+        cmd.vel_right = vel_right
+        self.publisher.publish(cmd)
+
 
 
 
