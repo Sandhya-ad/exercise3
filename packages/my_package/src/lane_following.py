@@ -86,23 +86,26 @@ class LaneFollowing(DTROS):
         # variables for Controller
         # use of self.Kp = 0.001 for p controller
         # use self.kp = 0.003 for pd controller
-        self.Kp = 0.0013   # Tune this value absed on testing ask chatGPT more about it how increase 
+        # 0.0013
+        self.Kp = 0.0015   # Tune this value absed on testing ask chatGPT more about it how increase 
         # and decrease affect the movement
         # use self.Kd = 0.005 for pd controller
         self.Kd = 0.005
         self.prev_error = 0
         self.Ki = 0.001
         self.integral = 0
-        self.max_integral = 23
-        self.slow_speed = 0.1
+        self.max_integral = 80
+        # 0.09
+        self.slow_speed = 0.13
         self.normal_speed = 0.2
-        self.curve_threshold = 20
+        self.curve_threshold = 50
 
          # Variables for image processing optimization
         self.last_processed_image = None  # Stores the last cropped image
         # use 5 for self.kp
         # use 5 for self.kd
         self.difference_threshold = 5    # Adjust threshold as necessary
+        self.threshold_count = 0
         
         
 
@@ -123,7 +126,13 @@ class LaneFollowing(DTROS):
                 mean_diff = np.mean(diff)
                 # If the difference is very low, skip further processing
                 if mean_diff < self.difference_threshold:
-                    return
+                    self.threshold_count += 1
+                    if self.threshold_count < 11:
+                        print("Not enough")
+                        return
+            
+            print("reseting")
+            self.threshold_count = 0
 
             # Update the last processed image (copy to avoid reference issues)
             self.last_processed_image = bottom_half.copy()
@@ -139,11 +148,11 @@ class LaneFollowing(DTROS):
             white_lane_masking = self.detect_white_solid_lane(undistorted_image)
 
             # combine both lane masking
-            Combined_mask = cv2.bitwise_or(yellow_lanes_masking, white_lane_masking)
+            #Combined_mask = cv2.bitwise_or(yellow_lanes_masking, white_lane_masking)
 
-            processed_msg_yellow = self._bridge.cv2_to_imgmsg(yellow_lanes_masking)
-            processed_msg_white = self._bridge.cv2_to_imgmsg(white_lane_masking)
-            processed_msg_both = self._bridge.cv2_to_compressed_imgmsg(undistorted_image)
+            #processed_msg_yellow = self._bridge.cv2_to_imgmsg(yellow_lanes_masking)
+            #processed_msg_white = self._bridge.cv2_to_imgmsg(white_lane_masking)
+            #processed_msg_both = self._bridge.cv2_to_compressed_imgmsg(undistorted_image)
 
             # Calculate the lane center
             lane_center = self.compute_lane_center(yellow_lanes_masking, white_lane_masking, undistorted_image)
@@ -157,12 +166,14 @@ class LaneFollowing(DTROS):
                 elif self._controller_mode == "pid":
                     self.apply_pid_controller(lane_center, undistorted_image)
             else:
-                print(f"lane center: {lane_center}")
+                print(f"lane center: {lane_center} ############################################################################################")
 
 
-            self.pub_yellow.publish(processed_msg_yellow)
-            self.pub_white.publish(processed_msg_white)
-            self.pub_both.publish(processed_msg_both)
+            #self.pub_yellow.publish(processed_msg_yellow)
+            #self.pub_white.publish(processed_msg_white)
+            #self.pub_both.publish(processed_msg_both)
+
+
 
 
         
@@ -245,7 +256,7 @@ class LaneFollowing(DTROS):
 
         # Handle cases where one or both centroids are missing
         if centroid_white is None and centroid_yellow is None:
-            #print("No lanes detected.")
+            print("None")
             return None  # Default to image center to prevent extreme corrections
 
         if centroid_white is None:
@@ -273,51 +284,6 @@ class LaneFollowing(DTROS):
             return (cx, cy)
         return None
 
-
-    def apply_p_controller(self, lane_center, image):
-        """Applies P control to follow the lane smoothly while moving forward."""
-        _, image_width, _ = image.shape
-        image_center = image_width // 2
-        error = lane_center - image_center  # Error: difference from the center
-
-        # Proportional control calculation
-        control = self.Kp * error  # Positive to steer correctly
-
-        # Ensure a forward base speed
-        base_speed = 0.27  # Adjust this based on your robot's dynamics
-
-        print(f"control: {control}")
-
-        # Compute left and right wheel speeds
-        vel_left = base_speed + control
-        vel_right = base_speed - control
-
-        # Clamp values between -1 and 1
-        vel_left = max(min(vel_left, 1.0), -1.0)
-        vel_right = max(min(vel_right, 1.0), -1.0)
-
-        print(f"image center: {image_center}, lane center: {lane_center}, Error: {error}, left: {vel_left}, right: {vel_right}")
-
-
-        # Check if 350 ticks have been reached
-        if self._ticks_left is not None and self._ticks_right is not None:
-            ticks_travelled_left = abs(self._ticks_left - self._initial_ticks_left)
-            ticks_travelled_right = abs(self._ticks_right - self._initial_ticks_right)
-
-            # make sure to travel it to 1.5 m, calculate the ticks accordingly.
-            if ticks_travelled_left >= 900 or ticks_travelled_right >= 900:
-                rospy.loginfo_once("Stopping robot after 850 ticks")
-                vel_left = 0.0
-                vel_right = 0.0
-
-        # Publish the velocity command
-        cmd = WheelsCmdStamped()
-        cmd.vel_left = vel_left
-        cmd.vel_right = vel_right
-        self.publisher.publish(cmd)
-
-
-    def apply_pd_controller(self, lane_center, image):
         """Applies PD control to follow the lane smoothly while moving forward."""
         # Get the center of the image
         _, image_width, _ = image.shape
@@ -399,17 +365,32 @@ class LaneFollowing(DTROS):
         # Update the previous error for the next cycle
         self.prev_error = error
 
+        '''        
         # Choose dynamic max_integral based on whether the error indicates a curve
         if abs(error) > self.curve_threshold:
             self.max_integral = 80
         else:
             self.max_integral = 23
-
-        # Update the integral term (using dt=1 for simplicity)
+        '''
+    
+        #Update the integral term (using dt=1 for simplicity)
         self.integral += error
+        
+        # Anti-windup: Clamp integral value to the range [0, max_integral]
+        if self.integral >= self.max_integral:
+            self.integral -= error
+            if self.integral <= 75:
+                self.integral *= 0.80
+        elif self.integral < 0:
+            self.integral = 0
+                
 
-        # Anti-windup: clamp the integral term to prevent excessive accumulation
-        self.integral = max(min(self.integral, self.max_integral), -self.max_integral)
+            
+        
+        print(f"Error: {error}, Integral: {self.integral}, Derivative: {derivative}")
+
+                
+            
 
         # PID control: combine proportional, integral, and derivative terms
         control = self.Kp * error + self.Ki * self.integral + self.Kd * derivative
@@ -421,7 +402,8 @@ class LaneFollowing(DTROS):
         else:
             base_speed = self.normal_speed
 
-        print(f"control: {control}, max integral: {self.max_integral}")
+
+        #print(f"control: {control}, max integral: {self.max_integral}")
 
         # Compute left and right wheel speeds (differential drive control)
         vel_left = base_speed + control
@@ -431,8 +413,8 @@ class LaneFollowing(DTROS):
         vel_left = max(min(vel_left, 1.0), -1.0)
         vel_right = max(min(vel_right, 1.0), -1.0)
 
-        print(f"image center: {image_center}, lane center: {lane_center}, Error: {error}, "
-            f"Integral: {self.integral}, Derivative: {derivative}, left: {vel_left}, right: {vel_right}")
+        print(f"left: {vel_left}, right: {vel_right}")
+
 
         # Check if 850 ticks have been reached to potentially stop the robot
         if self._ticks_left is not None and self._ticks_right is not None:
@@ -440,16 +422,18 @@ class LaneFollowing(DTROS):
             ticks_travelled_right = abs(self._ticks_right - self._initial_ticks_right)
             
             # If either wheel has reached 850 ticks, stop the robot
-            if ticks_travelled_left >= 2000 or ticks_travelled_right >= 2000:
-                rospy.loginfo_once("Stopping robot after 850 ticks")
+            if ticks_travelled_left >= 4050 or ticks_travelled_right >= 4050:
+                rospy.loginfo_once("Stopping robot after 4000 ticks")
                 vel_left = 0.0
                 vel_right = 0.0
+
 
         # Publish the velocity command
         cmd = WheelsCmdStamped()
         cmd.vel_left = vel_left
         cmd.vel_right = vel_right
         self.publisher.publish(cmd)
+
 
 
 
