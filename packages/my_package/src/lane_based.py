@@ -8,7 +8,7 @@ from duckietown.dtros import DTROS, NodeType  # Import DTROS
 
 
 """
-Main function for the lane-based0 behaviour movement
+Main function for the lane-based behaviour movement (part1)
 calls led, auto-nav and color detection in one code
 """
 class LaneBehavior(DTROS):  # Inherit from DTROS instead of manually calling rospy.init_node()

@@ -11,7 +11,7 @@ from undistorted import CameraReaderNode
 from sensor_msgs.msg import CameraInfo
 
 """
-Detects lane color
+Detects lane color, dimension of the tape and how far it is
 DTROS not initialized to use the functions in lane based behaviour
 """
 
@@ -167,8 +167,7 @@ class LaneDetectionNode:
 
         if self.focal_length_px is None:
             rospy.logwarn("Focal length not received from camera_info. Using default.")
-            self.focal_length_px = 500  # Default value (replace with actual calibration)
-
+            self.focal_length_px = 500 
         known_object_width_m = 0.232  # 0.6666 ft converted to meters
 
         distance_m = (known_object_width_m * self.focal_length_px) / object_pixel_width
