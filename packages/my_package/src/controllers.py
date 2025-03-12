@@ -71,7 +71,7 @@ class ControllerNode(DTROS):
         # Publisher for lane detection (colors)
         self.pub_yellow = rospy.Publisher(self._yellow_line_detection, Image, queue_size=1)
         self.pub_white = rospy.Publisher(self._white_line_detection, Image, queue_size=1)
-        self.pub_both = rospy.Publisher(self._both, CompressedImage, queue_size=1)
+        self.pub_both = rospy.Publisher(self._both, Image, queue_size=1)
         
         # Construct subscribers and publishers for wheels
         self.sub_left = rospy.Subscriber(self._left_encoder_topic, WheelEncoderStamped, self.callback_left)
@@ -142,7 +142,7 @@ class ControllerNode(DTROS):
 
             processed_msg_yellow = self._bridge.cv2_to_imgmsg(yellow_lanes_masking)
             processed_msg_white = self._bridge.cv2_to_imgmsg(white_lane_masking)
-            processed_msg_both = self._bridge.cv2_to_compressed_imgmsg(undistorted_image)
+            processed_msg_both = self._bridge.cv2_to_imgmsg(Combined_mask)
 
             # Calculate the lane center
             lane_center = self.compute_lane_center(yellow_lanes_masking, white_lane_masking, undistorted_image)
