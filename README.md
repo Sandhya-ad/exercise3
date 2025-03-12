@@ -29,12 +29,23 @@ Lane Based behaviour
 
 ## Part 2
 
-One of the following:
--For P Controller: In Controller.py, under __init__ make sure to assign self._controller_mode = "p"
--For PD Controller: In Controller.py, under __init__ make sure to assign self._controller_mode = "pd"
--For PID Controller: In Controller.py, under __init__ make sure to assign self._controller_mode = "pid"
+<pre><code>
+# For P Controller:
+# In Controller.py, under __init__:
+self._controller_mode = "p"
 
-- Run the command ` dts devel run -H csc22907.local -L controller`
+# For PD Controller:
+# In Controller.py, under __init__:
+self._controller_mode = "pd"
+
+# For PID Controller:
+# In Controller.py, under __init__:
+self._controller_mode = "pid"
+
+# Then run the following command:
+dts devel run -H csc22907.local -L controller
+</code></pre>
+
 
 ## Part 3
 
