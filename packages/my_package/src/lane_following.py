@@ -302,7 +302,17 @@ class LaneFollowing(DTROS):
 
         print(f"control: {control}")
 
-        # Compute left and right wheel speeds
+        # Adjust base speed depending on the error (for better performance on curves)
+        # When the error exceeds the curve_threshold, use a slower speed
+        if abs(error) > self.curve_threshold:
+            base_speed = self.slow_speed
+        else:
+            base_speed = self.normal_speed
+
+
+        #print(f"control: {control}, max integral: {self.max_integral}")
+
+        # Compute left and right wheel speeds (differential drive control)
         vel_left = base_speed + control
         vel_right = base_speed - control
 
@@ -356,7 +366,17 @@ class LaneFollowing(DTROS):
 
         print(f"control: {control}")
 
-        # Compute left and right wheel speeds using the control signal
+        # Adjust base speed depending on the error (for better performance on curves)
+        # When the error exceeds the curve_threshold, use a slower speed
+        if abs(error) > self.curve_threshold:
+            base_speed = self.slow_speed
+        else:
+            base_speed = self.normal_speed
+
+
+        #print(f"control: {control}, max integral: {self.max_integral}")
+
+        # Compute left and right wheel speeds (differential drive control)
         vel_left = base_speed + control
         vel_right = base_speed - control
 
