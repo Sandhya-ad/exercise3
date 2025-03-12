@@ -29,7 +29,7 @@ Lane Based behaviour
 
 ## Part 2
 
-One of the following
+One of the following:
 -For P Controller: In Controller.py, under __init__ make sure to assign self._controller_mode = "p"
 -For PD Controller: In Controller.py, under __init__ make sure to assign self._controller_mode = "pd"
 -For PID Controller: In Controller.py, under __init__ make sure to assign self._controller_mode = "pid"
