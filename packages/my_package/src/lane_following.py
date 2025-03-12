@@ -288,6 +288,50 @@ class LaneFollowing(DTROS):
             return (cx, cy)
         return None
 
+    def apply_p_controller(self, lane_center, image):
+        """Applies P control to follow the lane smoothly while moving forward."""
+        _, image_width, _ = image.shape
+        image_center = image_width // 2
+        error = lane_center - image_center  # Error: difference from the center
+
+        # Proportional control calculation
+        control = self.Kp * error  # Positive to steer correctly
+
+        # Ensure a forward base speed
+        base_speed = 0.27  # Adjust this based on your robot's dynamics
+
+        print(f"control: {control}")
+
+        # Compute left and right wheel speeds
+        vel_left = base_speed + control
+        vel_right = base_speed - control
+
+        # Clamp values between -1 and 1
+        vel_left = max(min(vel_left, 1.0), -1.0)
+        vel_right = max(min(vel_right, 1.0), -1.0)
+
+        print(f"image center: {image_center}, lane center: {lane_center}, Error: {error}, left: {vel_left}, right: {vel_right}")
+
+
+        # Check if 350 ticks have been reached
+        if self._ticks_left is not None and self._ticks_right is not None:
+            ticks_travelled_left = abs(self._ticks_left - self._initial_ticks_left)
+            ticks_travelled_right = abs(self._ticks_right - self._initial_ticks_right)
+
+            # make sure to travel it to 1.5 m, calculate the ticks accordingly.
+            if ticks_travelled_left >= 900 or ticks_travelled_right >= 900:
+                rospy.loginfo_once("Stopping robot after 850 ticks")
+                vel_left = 0.0
+                vel_right = 0.0
+
+        # Publish the velocity command
+        cmd = WheelsCmdStamped()
+        cmd.vel_left = vel_left
+        cmd.vel_right = vel_right
+        self.publisher.publish(cmd)
+
+
+    def apply_pd_controller(self, lane_center, image):
         """Applies PD control to follow the lane smoothly while moving forward."""
         # Get the center of the image
         _, image_width, _ = image.shape
@@ -307,11 +351,8 @@ class LaneFollowing(DTROS):
         # PD control calculation: combining proportional and derivative actions.
         control = self.Kp * error + self.Kd * derivative
 
-        # Adjust forward speed: if the error exceeds the curve threshold, use a slower speed
-        if abs(error) > self.curve_threshold:
-            base_speed = self.slow_speed
-        else:
-            base_speed = self.normal_speed
+        # Set a base forward speed
+        base_speed = 0.27  # Adjust based on your robot's dynamics
 
         print(f"control: {control}")
 
@@ -331,7 +372,7 @@ class LaneFollowing(DTROS):
             ticks_travelled_right = abs(self._ticks_right - self._initial_ticks_right)
             
             # If either wheel has reached 850 ticks, stop the robot
-            if ticks_travelled_left >= 1500 or ticks_travelled_right >= 1500:
+            if ticks_travelled_left >= 900 or ticks_travelled_right >= 900:
                 rospy.loginfo_once("Stopping robot after 900 ticks")
                 vel_left = 0.0
                 vel_right = 0.0
