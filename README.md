@@ -27,5 +27,16 @@ Lane Based behaviour
 - detects green: move up to green and turn right
 ##### The program is programmed to stop after executing one lane-based behavior. To see behavior in different color run the program in front of different color 
 
+## Part 2
+
+One of the following:
+    For P Controller: In Controller.py, under __init__ make sure to assign self._controller_mode = "p"
+    For PD Controller: In Controller.py, under __init__ make sure to assign self._controller_mode = "pd"
+    For PID Controller: In Controller.py, under __init__ make sure to assign self._controller_mode = "pid"
+
+- Run the command ` dts devel run -H csc22907.local -L controller`
+
+## Part 3
+
 Lane following
 - Run the command ` dts devel run -H csc22907.local -L lane-following`
