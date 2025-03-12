@@ -26,3 +26,6 @@ Lane Based behaviour
 - detects blue: move up to blue and turn left
 - detects green: move up to green and turn right
 ##### The program is programmed to stop after executing one lane-based behavior. To see behavior in different color run the program in front of different color 
+
+Lane following
+- Run the command ` dts devel run -H csc22907.local -L lane-following`
