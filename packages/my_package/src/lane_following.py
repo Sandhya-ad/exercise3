@@ -87,7 +87,7 @@ class LaneFollowing(DTROS):
         # use of self.Kp = 0.001 for p controller
         # use self.kp = 0.003 for pd controller
         # 0.0013
-        self.Kp = 0.0015   # Tune this value absed on testing ask chatGPT more about it how increase 
+        self.Kp = 0.00135   # Tune this value absed on testing ask chatGPT more about it how increase 
         # and decrease affect the movement
         # use self.Kd = 0.005 for pd controller
         self.Kd = 0.005
@@ -96,7 +96,7 @@ class LaneFollowing(DTROS):
         self.integral = 0
         self.max_integral = 80
         # 0.09
-        self.slow_speed = 0.13
+        self.slow_speed = 0.14
         self.normal_speed = 0.2
         self.curve_threshold = 50
 
