@@ -78,20 +78,27 @@ class ControllerNode(DTROS):
 
         # control mode
         #self._controller_mode = "p"
-        self._controller_mode = "pd"
-        #self._controller_mode = "p"
+        #self._controller_mode = "pd"
+        self._controller_mode = "pid"
 
 
 
         # variables for Controller
-        # use of self.Kp = 0.005 for p controller
-        self.Kp = 0.003   # Tune this value absed on testing ask chatGPT more about it how increase 
+        # use of self.Kp = 0.001 for p controller
+        # use self.kp = 0.003 for pd controller
+        self.Kp = 0.0013   # Tune this value absed on testing ask chatGPT more about it how increase 
         # and decrease affect the movement
+        # use self.Kd = 0.005 for pd controller
         self.Kd = 0.005
         self.prev_error = 0
+        self.Ki = 0.001
+        self.integral = 0
+        self.max_integral = 20
 
          # Variables for image processing optimization
         self.last_processed_image = None  # Stores the last cropped image
+        # use 5 for self.kp
+        # use 5 for self.kd
         self.difference_threshold = 5    # Adjust threshold as necessary
         
         
@@ -144,6 +151,8 @@ class ControllerNode(DTROS):
                     self.apply_p_controller(lane_center, undistorted_image)
                 elif self._controller_mode == "pd":
                     self.apply_pd_controller(lane_center, undistorted_image)
+                elif self._controller_mode == "pid":
+                    self.apply_pid_controller(lane_center, undistorted_image)
 
 
             self.pub_yellow.publish(processed_msg_yellow)
@@ -188,7 +197,7 @@ class ControllerNode(DTROS):
         #return cv2.GaussianBlur(undistorted, (5, 5), 0)
         return undistorted
 
-    
+   
     def detect_yellow_dotted_lane(self, image):
         # Convert the image to HSV color space
         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -260,9 +269,6 @@ class ControllerNode(DTROS):
         return None
 
 
-
-
-
     def apply_p_controller(self, lane_center, image):
         """Applies P control to follow the lane smoothly while moving forward."""
         _, image_width, _ = image.shape
@@ -273,7 +279,7 @@ class ControllerNode(DTROS):
         control = self.Kp * error  # Positive to steer correctly
 
         # Ensure a forward base speed
-        base_speed = 0.3  # Adjust this based on your robot's dynamics
+        base_speed = 0.27  # Adjust this based on your robot's dynamics
 
         print(f"control: {control}")
 
@@ -294,7 +300,7 @@ class ControllerNode(DTROS):
             ticks_travelled_right = abs(self._ticks_right - self._initial_ticks_right)
 
             # make sure to travel it to 1.5 m, calculate the ticks accordingly.
-            if ticks_travelled_left >= 850 or ticks_travelled_right >= 850:
+            if ticks_travelled_left >= 900 or ticks_travelled_right >= 900:
                 rospy.loginfo_once("Stopping robot after 850 ticks")
                 vel_left = 0.0
                 vel_right = 0.0
@@ -327,7 +333,7 @@ class ControllerNode(DTROS):
         control = self.Kp * error + self.Kd * derivative
 
         # Set a base forward speed
-        base_speed = 0.4  # Adjust based on your robot's dynamics
+        base_speed = 0.27  # Adjust based on your robot's dynamics
 
         print(f"control: {control}")
 
@@ -340,6 +346,65 @@ class ControllerNode(DTROS):
         vel_right = max(min(vel_right, 1.0), -1.0)
 
         print(f"image center: {image_center}, lane center: {lane_center}, Error: {error}, Derivative: {derivative}, left: {vel_left}, right: {vel_right}")
+
+        # Check if 850 ticks have been reached to potentially stop the robot
+        if self._ticks_left is not None and self._ticks_right is not None:
+            ticks_travelled_left = abs(self._ticks_left - self._initial_ticks_left)
+            ticks_travelled_right = abs(self._ticks_right - self._initial_ticks_right)
+            
+            # If either wheel has reached 850 ticks, stop the robot
+            if ticks_travelled_left >= 900 or ticks_travelled_right >= 900:
+                rospy.loginfo_once("Stopping robot after 900 ticks")
+                vel_left = 0.0
+                vel_right = 0.0
+
+        # Publish the velocity command
+        cmd = WheelsCmdStamped()
+        cmd.vel_left = vel_left
+        cmd.vel_right = vel_right
+        self.publisher.publish(cmd)
+
+
+    def apply_pid_controller(self, lane_center, image):
+        """Applies PID control with anti-windup to follow the lane smoothly while moving forward."""
+        # Get the center of the image
+        _, image_width, _ = image.shape
+        image_center = image_width // 2
+
+        # Calculate the error between the lane center and the image center
+        error = lane_center - image_center  # Error: difference from the center
+
+        # Calculate the derivative of the error (assuming constant dt)
+        derivative = error - self.prev_error
+
+        # Update the previous error for the next control cycle
+        self.prev_error = error
+
+        # Accumulate the error for the integral term (assuming dt=1 for simplicity)
+        self.integral += error
+
+        # Anti-windup: Clamp the integral term to prevent it from growing too large
+        # You should initialize self.max_integral (e.g., 50) in your __init__ method
+        self.integral = max(min(self.integral, self.max_integral), -self.max_integral)
+
+        # PID control calculation: combining proportional, integral, and derivative actions.
+        control = self.Kp * error + self.Ki * self.integral + self.Kd * derivative
+
+        # Set a base forward speed
+        base_speed = 0.25  # Adjust based on your robot's dynamics
+
+        print(f"control: {control}")
+
+        # Compute left and right wheel speeds using the control signal
+        vel_left = base_speed + control
+        vel_right = base_speed - control
+
+        # Clamp the velocity values between -1 and 1
+        vel_left = max(min(vel_left, 1.0), -1.0)
+        vel_right = max(min(vel_right, 1.0), -1.0)
+
+        print(f"image center: {image_center}, lane center: {lane_center}, Error: {error}, "
+            f"Integral: {self.integral}, Derivative: {derivative}, left: {vel_left}, right: {vel_right}")
 
         # Check if 850 ticks have been reached to potentially stop the robot
         if self._ticks_left is not None and self._ticks_right is not None:
