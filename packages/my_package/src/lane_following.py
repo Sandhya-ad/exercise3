@@ -1,3 +1,7 @@
+
+# The following code is generated with the help of CHATGPT (OPENAI) (https://chatgpt.com/)
+
+
 #!/usr/bin/env python3
 
 import os
